@@ -1,0 +1,2 @@
+INSERT INTO `gk_cronscheduler_items` (`title`, `cron`, `date_created`, `date_modified`, `date_available`, `date_expiry`, `date_lastrun_start`, `date_lastrun_end`, `date_expected_next_run`, `created_by_id`, `modified_by_id`, `command_type`, `command_internal`, `command_external_url`, `send_email_to`, `status`, `is_system_cron`) VALUES
+('Algoliasearch update index', '0 0 * * *', NOW(), NULL, NULL, NULL, NULL, NULL,  NOW(), 0, 0, NULL, '\\App\\AlgoliaSearch::processRunUpdateIndex', NULL, NULL, 1, NULL);
