@@ -1,21 +1,7 @@
 <?php
-/**
- * Algolia Search - Config
- * 
- * 
- *
- * @copyright 2019 Roy Hadrianoro
- *
- * @license MIT
- *
- * @package algoliasearch
- * @version 1.0
- * @author  Roy Hadrianoro <roy.hadrianoro@schlix.com>
- * @link    https://www.schlix.com
- */
 if (!defined('SCHLIX_VERSION')) die('No Access');
 
-$app_list = $this->supportedApplications();
+$app_list = $this->app->supportedApplications();
 ?>
 <!-- {top_menu} -->
 <schlix-config:data-editor data-schlix-controller="SCHLIX.CMS.AlgoliaSearchAdminController" type="config">
@@ -37,6 +23,7 @@ $app_list = $this->supportedApplications();
                     <schlix-config:textbox config-key='str_application_id' label='<?= ___('Application ID') ?>' />
                     <schlix-config:textbox config-key='str_search_only_key' label='<?= ___('Search-Only API Key') ?>' />
                     <schlix-config:textbox config-key='str_api_key' label='<?= ___('Admin API Key') ?>' />
+                    <schlix-config:textbox config-key='str_index_name' label='<?= ___('Index Name') ?>' />
                     <schlix-config:textbox config-key='int_hits_per_page' label='<?= ___('Hits per Page') ?>' type="number" />
                     <schlix-config:checkboxgroup config-key="array_enabled_apps" label="<?=  ___('Enable for the following applications') ?>">
                         <?php foreach ($app_list as $enabled_app): ?>
@@ -44,6 +31,13 @@ $app_list = $this->supportedApplications();
                         <?php endforeach ?>
                     </schlix-config:checkboxgroup>
                     <schlix-config:textbox config-key='int_value_max_length' label='<?= ___('Value Max. Length') ?>' type="number" />
+                    <div class="help-text">
+                        <?= ___('Determine text maximum length to be indexed. Set blank to index everything.') ?><br />
+                        <?= ___('There\'s size limit for each record determined by your selected Plan.') ?>
+                        <a href="https://www.algolia.com/doc/faq/basics/is-there-a-size-limit-for-my-index-records/" target="_blank" rel="noreferer nofollow">
+                            <?= ___('Click here for more information.') ?>
+                        </a>
+                    </div>
                 </x-ui:schlix-tab>
                 <!-- tab -->
                 <?= \SCHLIX\cmsHooks::output('getApplicationAdminExtraEditConfigTab', $this) ?>

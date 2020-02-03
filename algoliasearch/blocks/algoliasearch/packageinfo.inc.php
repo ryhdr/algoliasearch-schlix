@@ -3,10 +3,10 @@
 $name = 'Algolia Search';
 $type = 'block';
 $guid = 'ae1c30be-e191-1304-e1fa-17c648aa2733';
-$version = '1.0';
+$version = '1.1';
 $license = 'MIT';
-$description = '';
-$author = 'Roy Hadrianoro';
-$url = 'https://www.schlix.com';
-$email = 'roy.hadrianoro@schlix.com';
-$copyright = 'Copyright &copy;2019 Roy Hadrianoro';
+$description = 'An alternative site search function for SCHLIX CMS using Algolia Search.';
+$author = 'Roy H';
+$url = 'https://github.com/ryhdr/algoliasearch-schlix';
+$email = 'ryhdr@maysora.com';
+$copyright = 'Copyright &copy;2020 Roy H';

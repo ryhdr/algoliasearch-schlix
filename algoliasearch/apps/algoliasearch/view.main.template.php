@@ -1,18 +1,4 @@
 <?php
-/**
- * Algolia Search - Main page view (frontend)
- * 
- * 
- *
- * @copyright 2019 Roy Hadrianoro
- *
- * @license MIT
- *
- * @package algoliasearch
- * @version 1.0
- * @author  Roy Hadrianoro <roy.hadrianoro@schlix.com>
- * @link    https://www.schlix.com
- */
 if (!defined('SCHLIX_VERSION')) die('No Access');
 global $HTMLHeader;
 
@@ -32,10 +18,10 @@ $HTMLHeader->CSS($this->getURLofScript('algoliasearch.css'));
             <?= ___h($this->getApplicationDescription()) ?>
         </h1>
         <?php if ($this->isConfigured()): ?>
-            <div id="algoliadata" data-index-name="<?= ___h($this->getIndexName()) ?>"
-                 data-application-id="<?= ___h($this->application_id) ?>"
-                 data-search-only-key="<?= ___h($this->search_only_key) ?>"
-                 data-hits-per-page="<?= ___h($this->hits_per_page) ?>"></div>
+            <div id="algoliadata" data-index-name="<?= ___h($index_name) ?>"
+                 data-application-id="<?= ___h($application_id) ?>"
+                 data-search-only-key="<?= ___h($search_only_key) ?>"
+                 data-hits-per-page="<?= ___h($hits_per_page) ?>"></div>
             <header>
                 <div id="search-box"></div>
             </header>
@@ -50,12 +36,27 @@ $HTMLHeader->CSS($this->getURLofScript('algoliasearch.css'));
                     <a href="{{ link }}">
                         {{#helpers.highlight}}{ "attribute": "title" }{{/helpers.highlight}}
                     </a>
-                    <p class="summary">
-                        {{#helpers.highlight}}{ "attribute": "summary" }{{/helpers.highlight}}
-                    </p>
-                    <p class="description">
-                        {{#helpers.highlight}}{ "attribute": "description" }{{/helpers.highlight}}
-                    </p>
+                    {{#url_media_file}}
+                        <div class="image">
+                            <img src="{{url_media_file}}" alt="{{title}}" />
+                        </div>
+                        <div class="text">
+                            <p>
+                                {{#helpers.highlight}}{ "attribute": "summary" }{{/helpers.highlight}}
+                            </p>
+                            <p>
+                                {{#helpers.highlight}}{ "attribute": "description" }{{/helpers.highlight}}
+                            </p>
+                        </div>
+                    {{/url_media_file}}
+                    {{^url_media_file}}
+                        <p class="summary">
+                            {{#helpers.highlight}}{ "attribute": "summary" }{{/helpers.highlight}}
+                        </p>
+                        <p class="description">
+                            {{#helpers.highlight}}{ "attribute": "description" }{{/helpers.highlight}}
+                        </p>
+                    {{/url_media_file}}
                 </div>
             </script>
         <?php else: ?>

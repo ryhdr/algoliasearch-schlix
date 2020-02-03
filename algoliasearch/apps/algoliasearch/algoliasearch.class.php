@@ -1,50 +1,103 @@
 <?php
 namespace App;
-/**
- * Algolia Search - Main Class
- * 
- * 
- * 
- * @copyright 2019 Roy Hadrianoro
- *
- * @license MIT
- *
- * @package algoliasearch
- * @version 1.0
- * @author  Roy Hadrianoro <roy.hadrianoro@schlix.com>
- * @link    https://www.schlix.com
- */
 class AlgoliaSearch extends \SCHLIX\cmsApplication_Basic {
     /**
      * Constructor
      */
     public function __construct() {
         require(__DIR__ . '/vendor/autoload.php');
-        global $SystemConfig;
 
         parent::__construct("Algolia Search");
         $this->has_versioning = false;
         $this->disable_frontend_runtime = false;
 
-        $this->application_id = $SystemConfig->get($this->app_name, 'str_application_id');
-        $api_key = $SystemConfig->get($this->app_name, 'str_api_key');
-        $this->search_only_key = $SystemConfig->get($this->app_name, 'str_search_only_key');
-        if ($this->isConfigured()) {
+        $this->initIndex();
+    }
+
+    /**
+     * Initialize search index.
+     */
+    public function initIndex() {
+        if ($this->isConfigured() && !$this->index) {
             $this->client = \Algolia\AlgoliaSearch\SearchClient::create(
-                $this->application_id,
-                $api_key
+                $this->config('str_application_id'),
+                $this->config('str_api_key')
             );
+            $this->index_name = $this->config('str_index_name');
+            $this->index = $this->client->initIndex($this->index_name);
+            if (!$this->index->exists()) {
+                $this->setIndexSettings();
+                $this->updateIndex();
+            }
         }
-        $this->hits_per_page = (int) $SystemConfig->get($this->app_name, 'int_hits_per_page');
-        if(!is_int($this->hits_per_page) || $this->hits_per_page <= 0) {
-            $this->hits_per_page = 5;
-            $SystemConfig->set($this->app_name, 'int_hits_per_page', $this->hits_per_page);
+    }
+
+    /**
+     * Set index settings for searchableAttributes and highlight.
+     */
+    private function setIndexSettings() {
+        $this->index->setSettings([
+            'searchableAttributes' => [
+                'title',
+                'virtual_filename,meta_key,tags,summary,description',
+                'description_alternative_title,summary_secondary_headline,description_secondary_headline,meta_description'
+            ],
+            'attributesToHighlight' => [
+                'title', 'summary', 'description'
+            ]
+        ]);
+    }
+    
+    
+    /**
+     * Set config to default when $invalidCheck true.
+     * @global \SCHLIX\cmsConfigRegistry $SystemConfig
+     * @param string $name
+     * @param mixed $default
+     * @param string|function $invalidCheck
+     */
+    private function configDefault($name, $default, $invalidCheck) {
+        global $SystemConfig;
+        switch ($invalidCheck) {
+            case 'presence':
+                $result = !$this->_configs[$name];
+                break;
+            case 'numgt0':
+                $result = (int) $this->_configs[$name] <= 0;
+            case 'num':
+                $result = $result || is_null($this->_configs[$name]) || !is_numeric($this->_configs[$name]);
+                break;
+            default:
+                $result = $invalidCheck($this->_configs[$name]);
         }
-        $this->value_max_length = (int) $SystemConfig->get($this->app_name, 'int_value_max_length');
-        if(!is_int($this->value_max_length) || $this->value_max_length <= 0) {
-            $this->value_max_length = 5000;
-            $SystemConfig->set($this->app_name, 'int_value_max_length', $this->value_max_length);
+        if ($result) {
+            $this->_configs[$name] = $default;
+            $SystemConfig->set($this->app_name, $name, $this->_configs[$name]);
         }
+    }
+
+    /**
+     * Get config value.
+     * @global \SCHLIX\cmsConfigRegistry $SystemConfig
+     * @param string $name
+     * @param boolean $use_cache
+     * @return mixed
+     */
+    public function config($name, $use_cache = true) {
+        global $SystemConfig;
+        if(!$this->_configs || !$use_cache) {
+            $SystemConfig->clearCache($this->app_name);
+            $this->_configs = $SystemConfig->get($this->app_name);
+
+            $this->configDefault('int_hits_per_page', 5, 'numgt0');
+            $this->configDefault('int_value_max_length', 2000, 'numgt0');
+            $this->configDefault('str_index_name', 'schlixcms', 'presence');
+            $this->configDefault('array_enabled_apps', ['html', 'blog'], function($v){
+                return ___c($v) == 0 || !is_array($v) || count(array_diff($v, $this->supportedApplications())) > 0;
+            });
+        }
+
+        return ($name) ? $this->_configs[$name] : $this->_configs;
     }
 
     /**
@@ -52,109 +105,175 @@ class AlgoliaSearch extends \SCHLIX\cmsApplication_Basic {
      * @return boolean
      */
     public function isConfigured() {
-        return !empty($this->application_id) && !empty($this->search_only_key);
+        return !empty($this->config('str_application_id')) && !empty($this->config('str_search_only_key'));
     }
 
     /**
-     * Get current index name
-     * @return string
-     * @global \SCHLIX\cmsConfigRegistry $SystemConfig
+     * Convert value according to type so it's acceptable for indexing.
+     * @param mixed $value
+     * @return mixed [converted $value]
      */
-    public function getIndexName() {
-        global $SystemConfig;
-        return $SystemConfig->get($this->app_name, 'str_index_name');
+    private function getValueForIndexing($value) {
+        switch (gettype($value)) {
+            case 'string':
+                // TODO: filter out macro keywords when possible
+                $value = strip_tags($value);
+                if((int) $this->config('int_value_max_length') > 0) {
+                    return mb_strimwidth($value, 0, $this->config('int_value_max_length'), '..', 'utf-8');
+                }
+            default:
+                return $value;
+        }
+    }
+
+    /**
+     * Return array of indexed atttributes.
+     * @return array
+     */
+    private function getIndexedAttributes() {
+        return [
+            'id', 'virtual_filename', 'title', 'summary', 'description_alternative_title',
+            'summary_secondary_headline', 'description', 'description_secondary_headline',
+            'meta_key', 'meta_description', 'tags', 'url_media_file'
+        ];
+    }
+
+    /**
+     * Get indexed attributes for specified items.
+     * @param array $item
+     * @return array
+     */
+    private function getItemAttributes($item) {
+        $attributes = [];
+        foreach ($item as $key => $value) {
+            if(in_array($key, $this->getIndexedAttributes())) {
+                $attributes[$key] = $this->getValueForIndexing($value);
+            }
+        }
+        return $attributes;
+    }
+
+    /**
+     * Get all app items which available for indexing.
+     * @param object $app
+     * @param int $timestamp
+     * @return array
+     */
+    private function getItemsForApp($app, $timestamp) {
+        if (method_exists($app, 'getAllItems')) {
+            $current_time = date('Y-m-d H:i:s', $timestamp);
+            $current_time_str = sanitize_string($current_time);
+            $invalid_date_str = sanitize_string(NULL_DATE);
+            $sql_criteria_arr = [];
+            if ($app->itemColumnExists('status')) {
+                $sql_criteria_arr[] = "status > 0";
+            }
+            if ($app->itemColumnExists('date_available')) {
+                $sql_criteria_arr[] = "(date_available IS NULL OR date_available < {$current_time_str})";
+            }
+            if ($app->itemColumnExists('date_expiry')) {
+                $sql_criteria_arr[] = "((date_expiry IS NULL OR date_expiry = {$invalid_date_str}) OR date_expiry >= {$current_time_str})";
+            }
+            $sql_criteria = implode(' AND ', $sql_criteria_arr);
+            return $app->getAllItems('*', $sql_criteria, 0, 0, 'id', 'ASC');
+        }
+        return [];
+    }
+
+    /**
+     * Save records to Algolia, default split per 1000 records.
+     * @global \SCHLIX\cmsLogger $SystemLog
+     * @param array $records
+     * @param int $batch_num
+     * @return int [number of records]
+     */
+    private function addRecords($records, $batch_num = 1000) {
+        global $SystemLog;
+
+        $count = 0;
+        foreach (array_chunk($records, $batch_num) as $batch) {
+            try {
+                $this->index->saveObjects($batch);
+                $count += ___c($batch);
+            } catch (\Algolia\AlgoliaSearch\Exceptions\BadRequestException $e) {
+                $SystemLog->error($e->getMessage(), $this->app_name);
+            }
+        }
+        return $count;
+    }
+
+    /**
+     * Get items for app then add them to Algolia.
+     * @param string $app_name
+     * @param int $timestamp
+     * @return int [number of records]
+     */
+    private function addRecordsForApp($app_name, $timestamp) {
+        $app_class_name = '\\App\\' . $app_name;
+        $app = new $app_class_name;
+        $items = $this->getItemsForApp($app, $timestamp);
+        $records = [];
+
+        foreach ($items as $item) {
+            $attributes = array_merge([
+                'link' => $app->createFriendlyURL("action=viewitem&id={$item['id']}"),
+                'objectID' => $app_name . '-' . $item['id'],
+                'index_unix_timestamp' => $timestamp
+            ], $this->getItemAttributes($item));
+            if($attributes['url_media_file']) {
+                if (method_exists($app, 'getGalleryImage')) {
+                    $attributes['url_media_file'] = $app->getGalleryImage('image_small', $item['url_media_file'], '');
+                } elseif (method_exists($app, 'getBlogImage')) {
+                    $attributes['url_media_file'] = $app->getBlogImage('image_small', $item['url_media_file']);
+                }
+            }
+            $records[] = $attributes;
+        }
+        $count = $this->addRecords($records);
+
+        return $count;
+    }
+
+    /**
+     * Delete old records.
+     * @global \SCHLIX\cmsLogger $SystemLog
+     * @param int $timestamp
+     */
+    private function deleteOldRecords($timestamp) {
+        global $SystemLog;
+        $params = [
+            'filters' => 'index_unix_timestamp < ' . ($timestamp - 1)
+        ];
+        try {
+            $this->index->deleteBy($params);
+        } catch (\Algolia\AlgoliaSearch\Exceptions\BadRequestException $e) {
+            $SystemLog->error($e->getMessage(), $this->app_name);
+        }
     }
 
     /**
      * Update index from all records.
-     * Caveat:
-     *  Because it's not possible to find deleted records,
-     *  this method will actually initialize a new index with same settings.
-     * @global \SCHLIX\cmsConfigRegistry $SystemConfig
      * @global \SCHLIX\cmsLogger $SystemLog
+     * @return array ['success' => [bool], 'message' => [string]]
      */
     public function updateIndex() {
         if (!$this->isConfigured())
             return;
 
-        global $SystemConfig;
         global $SystemLog;
         
-        $apps = $this->supportedApplications();
-        $default_app_array = array('html', 'blog');
-        $enabled_apps_array = $SystemConfig->get($this->app_name, 'array_enabled_apps');
-        if (___c($enabled_apps_array) == 0 || !is_array($enabled_apps_array))
-            $enabled_apps_array = $default_app_array;
+        $apps = $this->config('array_enabled_apps');
 
-        $existing_index_name = $this->getIndexName();
-        $index_name = 'schlixcms-' . time();
-        if ($index_name == $existing_index_name) // probably never happens...
-            $index_name .= '0';
-        $index = $this->client->initIndex($index_name);
-        if ($existing_index_name) {
-            $this->client->copySettings(
-              $existing_index_name,
-              $index_name
-            );
-        }
-
-        $current_time = sanitize_string(get_current_datetime());
-        $invalid_date = sanitize_string(NULL_DATE);
+        $timestamp = time();
         $count = 0;
-        if ($apps) {
-            foreach ($apps as $appname) {
-                if (in_array($appname, $enabled_apps_array)) {
-                    $temp_app_name = '\\App\\' . $appname;
-                    $temp_app = new $temp_app_name;
-                    if (method_exists($temp_app, 'getAllItems')) {
-                        $batch = [];
-                        $sql_criteria = [];
-                        if ($temp_app->itemColumnExists('status')) {
-                            $sql_criteria[] = "status > 0";
-                        }
-                        if ($temp_app->itemColumnExists('date_available')) {
-                            $sql_criteria[] = "(date_available IS NULL OR date_available < {$current_time})";
-                        }
-                        if ($temp_app->itemColumnExists('date_expiry')) {
-                            $sql_criteria[] = "((date_expiry IS NULL OR date_expiry = {$invalid_date}) OR date_expiry >= {$current_time})";
-                        }
-                        $all_items = $temp_app->getAllItems('*', join(' AND ', $sql_criteria), 0, 0, 'id', 'ASC');
-                        foreach ($all_items as $the_item) {
-                            $indexed_attributes = [
-                                'id', 'virtual_filename', 'title', 'summary', 'description_alternative_title', 
-                                'summary_secondary_headline', 'description', 'description_secondary_headline', 
-                                'date_created', 'date_modified', 'date_available',
-                                'meta_key', 'meta_description', 'tags'
-                            ];
-                            foreach ($the_item as $key => $value) {
-                                if(in_array($key, $indexed_attributes)) {
-                                    // TODO: filter out macro keywords when possible
-                                    $attributes[$key] = mb_strimwidth(strip_tags($value), 0, $this->value_max_length, '..', 'utf-8');
-                                }
-                            }
-                            $attributes['link'] = $temp_app->createFriendlyURL("action=viewitem&id={$the_item['id']}");
-                            $attributes['objectID'] = $appname . '-' . $attributes['id'];
-                            $batch[] = $attributes;
-                        }
-                        try {
-                            $index->saveObjects($batch);
-                            $count += ___c($batch);
-                        } catch (\Algolia\AlgoliaSearch\Exceptions\BadRequestException $e) {
-                            $SystemLog->error($e->getMessage(), $this->app_name);
-                        }
-                    }
-                }
-            }
+        foreach ($apps as $app_name) {
+            $count += $this->addRecordsForApp($app_name, $timestamp);
         }
-        $old_index_name = $SystemConfig->get($this->app_name, 'str_old_index_name');
-        $SystemConfig->set($this->app_name, 'str_old_index_name', $existing_index_name);
-        $SystemConfig->set($this->app_name, 'str_index_name', $index_name);
-        if ($old_index_name) {
-            $old_index = $this->client->initIndex($old_index_name);
-            $old_index->delete();
-            $SystemLog->info("Index '$old_index_name' deleted. ", $this->app_name);
-        }
-        $SystemLog->info("Index '$index_name' added $count records. ", $this->app_name);
+        $this->deleteOldRecords($timestamp);
+
+        $message = "[$this->index_name] $count items indexed.";
+        $SystemLog->info($message, $this->app_name);
+        return ['success' => true, 'message' => $message];
     }
 
     /**
@@ -162,12 +281,12 @@ class AlgoliaSearch extends \SCHLIX\cmsApplication_Basic {
      */
     public function processRunUpdateIndex() {
         $Algoliasearch = new \App\AlgoliaSearch();
+        echo "Updating index ".$Algoliasearch->index_name."..";
         if ($Algoliasearch->isConfigured()) {
-            echo "Algoliasearch: updating index".$Algoliasearch->getIndexName();
-            $Algoliasearch->updateIndex();
-            echo "Algoliasearch: finished updating index".$Algoliasearch->getIndexName();
+            $result = $Algoliasearch->updateIndex();
+            echo "Done: ".$result['message'];
         } else {
-            echo "Algoliasearch: app not configured, exiting..";
+            echo "App not configured, exiting..";
         }
     }
 
@@ -183,7 +302,12 @@ class AlgoliaSearch extends \SCHLIX\cmsApplication_Basic {
      * View Main Page
      */
     public function viewMainPage() {
-        $this->loadTemplateFile('view.main', null);
+        $this->loadTemplateFile('view.main', [
+            'application_id'  => $this->config('str_application_id'),
+            'search_only_key' => $this->config('str_search_only_key'),
+            'hits_per_page'   => $this->config('int_hits_per_page'),
+            'index_name'      => $this->index_name
+        ]);
     }
             
     //_______________________________________________________________________________________________________________//

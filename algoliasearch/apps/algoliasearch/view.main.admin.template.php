@@ -1,18 +1,4 @@
 <?php
-/**
- * Algolia Search - Main Admin view
- * 
- * 
- *
- * @copyright 2019 Roy Hadrianoro
- *
- * @license MIT
- *
- * @package algoliasearch
- * @version 1.0
- * @author  Roy Hadrianoro <roy.hadrianoro@schlix.com>
- * @link    https://www.schlix.com
- */
 if (!defined('SCHLIX_VERSION')) die('No Access');
 ?>
 <!-- {top_menu} -->
@@ -64,11 +50,6 @@ if (!defined('SCHLIX_VERSION')) die('No Access');
                     </p>
                 </li>
             </ol>
-        <?php elseif (empty($this->app->getIndexName())): ?>
-            <p>
-                One last step:
-                <a href="<?= $this->createFriendlyAdminURL('action=updateindex'); ?>" data-schlix-command="updateindex" data-schlix-app-action="updateindex" class="schlix-command-button">click here to initialize search index.</a>
-            </p>
         <?php else: ?>
             <h4>Algolia Search configured, start using search by placing algoliasearch block or macro on appropriate location.</h4>
             <p>

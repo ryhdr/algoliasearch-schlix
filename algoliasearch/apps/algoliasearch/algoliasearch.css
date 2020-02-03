@@ -1,18 +1,3 @@
-/**
- * Algolia Search - Frontend CSS
- *
- *
- *
- * @copyright 2019 Roy Hadrianoro
- *
- * @license MIT
- *
- * @package algoliasearch
- * @version 1.0
- * @author  Roy Hadrianoro <roy.hadrianoro@schlix.com>
- * @link    https://www.schlix.com
- */
-
 [class^="ais-"] {
     font-size: inherit;
 }
@@ -32,6 +17,7 @@
 .ais-Hits-list .ais-Hits-item {
     display: block;
     width: 100%;
+    overflow: hidden;
 }
 
 .ais-Hits-list .ais-Hits-item mark {
@@ -45,10 +31,21 @@
 }
 
 .ais-Hits-list .ais-Hits-item p {
-    position: relative;
-    max-height: 65px;
     overflow: hidden;
-    overflow-y: auto;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ais-Hits-list .ais-Hits-item .text p {
+    white-space: normal;
+    max-height: 150px;
+    display: block;
+}
+
+.ais-Hits-list .ais-Hits-item .image {
+    float: left;
+    max-width: 40%;
+    padding-right: 10px;
 }
 
 .ais-Hits-list .ais-Hits-item .description {

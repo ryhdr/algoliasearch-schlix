@@ -1,19 +1,5 @@
 <?php
 namespace Macro;
-/**
- * Algolia Search - macro class
- * 
- * 
- * 
- * @copyright 2019 Roy Hadrianoro
- *
- * @license MIT
- *
- * @package algoliasearch
- * @version 1.0
- * @author  Roy Hadrianoro <roy.hadrianoro@schlix.com>
- * @link    https://www.schlix.com
- */
 
 class AlgoliaSearch extends \SCHLIX\cmsMacro {
     protected static $has_this_macro_been_called;

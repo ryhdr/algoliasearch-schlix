@@ -1,20 +1,6 @@
 <?php
-/**
- * Algolia Search - Main page view template. Lists both categories and items with parent_id = 0 and category_id = 0 
- * 
- * 
- * 
- * @copyright 2019 Roy Hadrianoro
- *
- * @license MIT
- *
- * @package algoliasearch
- * @version 1.0
- * @author  Roy Hadrianoro <roy.hadrianoro@schlix.com>
- * @link    https://www.schlix.com
- */
 if (!defined('SCHLIX_VERSION')) die('No Access');
-$index_name = ___h($app_search->getIndexName());
+$index_name = ___h($app_search->index_name);
 $value = ___h(urldecode(\SCHLIX\cmsHttpInputFilter::string_noquotes_notags($_GET[$index_name], 'query', 255)));
 ?>
 <div class="block-algoliasearch nice-search" id="<?= ___h($this->block_name) ?>">
