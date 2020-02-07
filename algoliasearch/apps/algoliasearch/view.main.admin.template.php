@@ -58,6 +58,9 @@ if (!defined('SCHLIX_VERSION')) die('No Access');
                 Alternatively you can update the index manually using Update Button above.
             </p>
             <p>
+                Only publicly readable items are indexed.
+            </p>
+            <p>
                 Log entry will be added each time search index updated.<br />
                 You can view the log at <strong>Tools > Log Viewer</strong>.
             </p>

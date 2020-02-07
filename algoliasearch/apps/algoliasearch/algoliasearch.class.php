@@ -174,6 +174,10 @@ class AlgoliaSearch extends \SCHLIX\cmsApplication_Basic {
             if ($app->itemColumnExists('date_expiry')) {
                 $sql_criteria_arr[] = "((date_expiry IS NULL OR date_expiry = {$invalid_date_str}) OR date_expiry >= {$current_time_str})";
             }
+            if ($app->itemColumnExists('permission_read')) {
+                $public_permission = sanitize_string('s:8:"everyone";');
+                $sql_criteria_arr[] = "(permission_read IS NULL OR permission_read = {$public_permission})";
+            }
             $sql_criteria = implode(' AND ', $sql_criteria_arr);
             return $app->getAllItems('*', $sql_criteria, 0, 0, 'id', 'ASC');
         }
